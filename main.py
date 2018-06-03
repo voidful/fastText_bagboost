@@ -1,9 +1,11 @@
 import os
+from collections import defaultdict
 from multiprocessing import Process
 from random import randint, uniform, choice
 
 import fasttext
 import time
+from numpy import mean
 
 
 def random_string(length):
@@ -54,16 +56,18 @@ def test_from_data():
 
 
 def test_result(classifiers):
-    while (True):
+    while True:
         input_sentence = ''
         for j in input(">>> Input: "):
             input_sentence += j + " "
         print(input_sentence)
+        result_dict = defaultdict(list)
         for classifier in classifiers:
-            prob = classifier.predict_proba([input_sentence])
-            ans = (classifier.predict([input_sentence]))
-            print(prob)
-            print(ans)
+            prob = classifier.predict_proba([input_sentence])[0][0]
+            (result_dict[prob[0]]).append(prob[1])
+        for key, value in result_dict.items():
+            print(key, mean(value))
+        print(len(result_dict), len(classifiers))
 
 
 def train_classifiers(model_num=10, save_dri="./" + str(int(time.time())) + "/"):
@@ -83,14 +87,20 @@ def train_classifiers(model_num=10, save_dri="./" + str(int(time.time())) + "/")
                                       'bucket': bucket}).start()
 
 
-def run_multi_classifiers():
+def multi_load_model(target_dir, cb_queue):
+    cb_queue.send(fasttext.load_model(target_dir, label_prefix='__label__'))
+    cb_queue.close()
+    return 0
+
+
+def run_multi_classifiers(filedir="./"):
     classifiers = []
-    for file in os.listdir("./"):
-        if file.endswith(".bin"):
-            classifier = fasttext.load_model(file, label_prefix='__label__')
-            classifiers.append(classifier)
+    for dir_file in os.listdir(filedir):
+        if dir_file.endswith(".bin"):
+            classifiers.append(fasttext.load_model(filedir + dir_file))
     test_result(classifiers)
 
 
 if __name__ == "__main__":
-    train_classifiers(100)
+    # train_classifiers(100)
+    run_multi_classifiers("./1527760367/")
