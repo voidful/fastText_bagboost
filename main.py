@@ -56,7 +56,7 @@ def get_multi_classifier_loc(classifier_dir="./"):
     return classifiers_loc
 
 
-def filter_loc_classifiers(threshold=0.5, classifier_dir="./", testing_data=''):
+def remove_model_with_low_accuracy(threshold=0.5, classifier_dir="./", testing_data=''):
     classifiers_loc = get_multi_classifier_loc(classifier_dir)
     classifiers = run_multi_process(fastText_utility.load_model, classifiers_loc)
     detail = fastText_utility.predict_with_each_classifiers(classifiers, classifiers_loc, testing_data)
@@ -123,7 +123,7 @@ def store_classifiers_detail(classifier_dir="./", testing_loc='', output_name='d
             f.write("=====" + "\n")
 
 
-def select_retain_data_random(training_loc, testing_loc, output_loc, select_count=50):
+def pick_data_to_retrain_by_sampling(training_loc, testing_loc, output_loc, select_count=50):
     with open(training_loc, 'r', encoding='utf-8') as training:
         training_lines = training.readlines()
     with open(testing_loc, 'r', encoding='utf-8') as f:
@@ -140,7 +140,7 @@ def select_retain_data_random(training_loc, testing_loc, output_loc, select_coun
             output_testing.write("__label__" + label + " " + sent + "\n")
 
 
-def select_retain_data_entropy(training_loc, bagging_res, output_loc, select_count=50):
+def pick_data_to_retrain_by_high_entropy(training_loc, bagging_res, output_loc, select_count=50):
     with open(training_loc, 'r', encoding='utf-8') as training:
         training_lines = training.readlines()
     with open(output_loc + "training_entropy.data", 'w', encoding='utf-8') as output_training:
@@ -157,7 +157,7 @@ def select_retain_data_entropy(training_loc, bagging_res, output_loc, select_cou
             output_testing.write("__label__" + bagging_res[sent]["true_label"] + " " + sent + "\n")
 
 
-def select_retain_data_kmeans(training_loc, testing_loc, output_loc, select_count=50):
+def pick_data_to_retrain_by_kmeans(training_loc, testing_loc, output_loc, select_count=50):
     with open(training_loc, 'r', encoding='utf-8') as training:
         training_lines = training.readlines()
     with open(testing_loc, 'r', encoding='utf-8') as testing:
@@ -226,25 +226,25 @@ if __name__ == "__main__":
 
     # 10, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 400, 500
     # 600, 700,800,900,1000,1100,1200,1300,1400,1500
-    for exec_num in [10, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200,
+    for number_of_data_to_retrain in [10, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200,
                      1300, 1400, 1500]:
         # retrain
         origin_bagging_result, origin_accuracy = test_multi_classifier_bagging(origin_model_dir,
                                                                                origin_testing_dir)
-        select_retain_data_entropy(origin_training_dir, origin_bagging_result,
-                                   "./training_data/taipei/", exec_num)
-        select_retain_data_random(origin_training_dir, origin_testing_dir,
-                                  "./training_data/taipei/", exec_num)
-        select_retain_data_kmeans(origin_training_dir, origin_testing_dir,
-                                  "./training_data/taipei/", exec_num)
+        pick_data_to_retrain_by_high_entropy(origin_training_dir, origin_bagging_result,
+                                   "./training_data/taipei/", number_of_data_to_retrain)
+        pick_data_to_retrain_by_kmeans(origin_training_dir, origin_testing_dir,
+                                  "./training_data/taipei/", number_of_data_to_retrain)
+        pick_data_to_retrain_by_sampling(origin_training_dir, origin_testing_dir,
+                                  "./training_data/taipei/", number_of_data_to_retrain)
         for ways in ["kmeans", "entropy", "random"]:
-            retrain_model_dir = "./" + origin_model_timestamp + "_" + ways + "_" + str(exec_num) + "/"
+            retrain_model_dir = "./" + origin_model_timestamp + "_" + ways + "_" + str(number_of_data_to_retrain) + "/"
             retrain_model(origin_model_dir, retrain_model_dir,
                           "./training_data/taipei/training_" + ways + ".data",
                           "./training_data/taipei/testing_" + ways + ".data")
             bagging_result, accuracy = test_multi_classifier_bagging(retrain_model_dir,
                                                                      "./training_data/taipei/testing_" + ways + ".data")
             store_bagging_detail(bagging_result, accuracy,
-                                 ways + "_classifiers_bagging_" + str(exec_num) + ".detail")
+                                 ways + "_classifiers_bagging_" + str(number_of_data_to_retrain) + ".detail")
             store_classifiers_detail(retrain_model_dir, "./training_data/taipei/testing_" + ways + ".data",
-                                     ways + "_classifiers_" + str(exec_num) + ".detail")
+                                     ways + "_classifiers_" + str(number_of_data_to_retrain) + ".detail")
