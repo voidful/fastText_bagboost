@@ -56,7 +56,7 @@ def get_multi_classifier_loc(classifier_dir="./"):
     return classifiers_loc
 
 
-def filter_loc_classifiers(threshold=0.5, classifier_dir="./", testing_data=''):
+def remove_model_with_low_accuracy(threshold=0.5, classifier_dir="./", testing_data=''):
     classifiers_loc = get_multi_classifier_loc(classifier_dir)
     classifiers = run_multi_process(fastText_utility.load_model, classifiers_loc)
     detail = fastText_utility.predict_with_each_classifiers(classifiers, classifiers_loc, testing_data)
@@ -123,7 +123,7 @@ def store_classifiers_detail(classifier_dir="./", testing_loc='', output_name='d
             f.write("=====" + "\n")
 
 
-def select_retain_data_random(training_loc, testing_loc, output_loc, select_count=50):
+def select_retrain_data_random(training_loc, testing_loc, output_loc, select_count=50):
     with open(training_loc, 'r', encoding='utf-8') as training:
         training_lines = training.readlines()
     with open(testing_loc, 'r', encoding='utf-8') as f:
@@ -140,7 +140,7 @@ def select_retain_data_random(training_loc, testing_loc, output_loc, select_coun
             output_testing.write("__label__" + label + " " + sent + "\n")
 
 
-def select_retain_data_entropy(training_loc, bagging_res, output_loc, select_count=50):
+def select_retrain_data_entropy(training_loc, bagging_res, output_loc, select_count=50):
     with open(training_loc, 'r', encoding='utf-8') as training:
         training_lines = training.readlines()
     with open(output_loc + "training_entropy.data", 'w', encoding='utf-8') as output_training:
@@ -157,7 +157,7 @@ def select_retain_data_entropy(training_loc, bagging_res, output_loc, select_cou
             output_testing.write("__label__" + bagging_res[sent]["true_label"] + " " + sent + "\n")
 
 
-def select_retain_data_kmeans(training_loc, testing_loc, output_loc, select_count=50):
+def select_retrain_data_kmeans(training_loc, testing_loc, output_loc, select_count=50):
     with open(training_loc, 'r', encoding='utf-8') as training:
         training_lines = training.readlines()
     with open(testing_loc, 'r', encoding='utf-8') as testing:
@@ -231,11 +231,11 @@ if __name__ == "__main__":
         # retrain
         origin_bagging_result, origin_accuracy = test_multi_classifier_bagging(origin_model_dir,
                                                                                origin_testing_dir)
-        select_retain_data_entropy(origin_training_dir, origin_bagging_result,
+        select_retrain_data_entropy(origin_training_dir, origin_bagging_result,
                                    "./training_data/taipei/", exec_num)
-        select_retain_data_random(origin_training_dir, origin_testing_dir,
+        select_retrain_data_random(origin_training_dir, origin_testing_dir,
                                   "./training_data/taipei/", exec_num)
-        select_retain_data_kmeans(origin_training_dir, origin_testing_dir,
+        select_retrain_data_kmeans(origin_training_dir, origin_testing_dir,
                                   "./training_data/taipei/", exec_num)
         for ways in ["kmeans", "entropy", "random"]:
             retrain_model_dir = "./" + origin_model_timestamp + "_" + ways + "_" + str(exec_num) + "/"
