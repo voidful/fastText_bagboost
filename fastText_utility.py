@@ -73,7 +73,8 @@ def load_model(target_dir, cb_queue):
 
 
 def sentence2vec(model, sentence):
-    return model[''.join(rmsw(sentence, flag=False))]
+    input_sent = ''.join(rmsw(sentence, flag=False))
+    return model[input_sent]
 
 
 def predict_combine_with_classifiers(classifiers, input_sentence, true_label=''):

@@ -56,13 +56,33 @@ def get_multi_classifier_loc(classifier_dir="./"):
     return classifiers_loc
 
 
-def filter_loc_classifiers(classifier_dir="./", testing_data=''):
+def filter_loc_classifiers(threshold=0.5, classifier_dir="./", testing_data=''):
     classifiers_loc = get_multi_classifier_loc(classifier_dir)
     classifiers = run_multi_process(fastText_utility.load_model, classifiers_loc)
     detail = fastText_utility.predict_with_each_classifiers(classifiers, classifiers_loc, testing_data)
     for classifier_loc, value in detail.items():
-        if float(value["precision"]) < 0.5 or float(value["recall"]) < 0.5:
+        print(value["precision"])
+        if float(value["precision"]) < threshold or float(value["recall"]) < threshold:
             os.remove(classifier_loc)
+
+
+class Assesser:
+    classifiers = []
+
+    def __init__(self, classifier_dir):
+        classifiers_loc = get_multi_classifier_loc(classifier_dir)
+        self.classifiers = run_multi_process(fastText_utility.load_model, classifiers_loc)
+
+    def evaluate(self, queries):
+        if isinstance(queries, str): queries = [queries]
+        result_dict = defaultdict(str)
+        for querie in queries:
+            sentence = ' '.join(querie)
+            print(sentence)
+            output_detail = fastText_utility.predict_combine_with_classifiers(self.classifiers, sentence)
+            result_dict[sentence] = output_detail
+            print(sentence + " : " + str(output_detail['entropy']))
+        return result_dict
 
 
 def test_multi_classifier_bagging(classifier_dir="./", testing_loc=''):
@@ -187,31 +207,44 @@ def retrain_model(classifiers_dir='', output_dir='', training_data_dir='', testi
         i.join()
 
 
-# if __name__ == "__main__":
-    # origin_model_dir = train_multi_classifier('./training_data/taipei/training.data', 100)
-    # filter_loc_classifiers(origin_model_dir, './training_data/taipei/testing.data')
+if __name__ == "__main__":
+    # fastText_utility.train_vector(input='./training_data/taipei/training.data', output='model', lr=0.1, dim=300)
+    #
+    # number_of_classifier = 100
+    # filter_threshold = 0.5
+    # origin_model_dir = train_multi_classifier('./training_data/taipei/training.data', number_of_classifier)
+    # filter_loc_classifiers(filter_threshold, origin_model_dir, './training_data/taipei/training.data')
 
-    # origin_model_timestamp = "1529340043"
-    # origin_model_dir = "./" + origin_model_timestamp + "/"
-    # # 10, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 400, 500
-    # for exec_num in [10, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 400, 500]:
-    #     # retrain
-    #     origin_bagging_result, origin_accuracy = test_multi_classifier_bagging(origin_model_dir,
-    #                                                                            './training_data/taipei/testing.data')
-    #     select_retain_data_entropy('./training_data/taipei/training.data', origin_bagging_result,
-    #                                "./training_data/taipei/", exec_num)
-    #     select_retain_data_random('./training_data/taipei/training.data', './training_data/taipei/testing.data',
-    #                               "./training_data/taipei/", exec_num)
-    #     select_retain_data_kmeans('./training_data/taipei/training.data', './training_data/taipei/testing.data',
-    #                               "./training_data/taipei/", exec_num)
-    #     for ways in ["kmeans", "entropy", "random"]:
-    #         retrain_model_dir = "./" + origin_model_timestamp + "_" + ways + "_" + str(exec_num) + "/"
-    #         retrain_model(origin_model_dir, retrain_model_dir,
-    #                       "./training_data/taipei/training_" + ways + ".data",
-    #                       "./training_data/taipei/testing_" + ways + ".data")
-    #         bagging_result, accuracy = test_multi_classifier_bagging(retrain_model_dir,
-    #                                                                  "./training_data/taipei/testing_" + ways + ".data")
-    #         store_bagging_detail(bagging_result, accuracy,
-    #                              ways + "_classifiers_bagging_" + str(exec_num) + ".detail")
-    #         store_classifiers_detail(retrain_model_dir, "./training_data/taipei/testing_" + ways + ".data",
-    #                                  ways + "_classifiers_" + str(exec_num) + ".detail")
+    origin_model_timestamp = "1529666650"
+    origin_model_dir = "./" + origin_model_timestamp + "/"
+    origin_training_dir = './training_data/taipei/training.data'
+    origin_testing_dir = './training_data/taipei/testing.data'
+
+    origin_bagging_result, origin_accuracy = test_multi_classifier_bagging(origin_model_dir,
+                                                                           origin_testing_dir)
+    store_bagging_detail(origin_bagging_result, origin_accuracy,"baseline.detail")
+
+    # 10, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 400, 500
+    # 600, 700,800,900,1000,1100,1200,1300,1400,1500
+    for exec_num in [10, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200,
+                     1300, 1400, 1500]:
+        # retrain
+        origin_bagging_result, origin_accuracy = test_multi_classifier_bagging(origin_model_dir,
+                                                                               origin_testing_dir)
+        select_retain_data_entropy(origin_training_dir, origin_bagging_result,
+                                   "./training_data/taipei/", exec_num)
+        select_retain_data_random(origin_training_dir, origin_testing_dir,
+                                  "./training_data/taipei/", exec_num)
+        select_retain_data_kmeans(origin_training_dir, origin_testing_dir,
+                                  "./training_data/taipei/", exec_num)
+        for ways in ["kmeans", "entropy", "random"]:
+            retrain_model_dir = "./" + origin_model_timestamp + "_" + ways + "_" + str(exec_num) + "/"
+            retrain_model(origin_model_dir, retrain_model_dir,
+                          "./training_data/taipei/training_" + ways + ".data",
+                          "./training_data/taipei/testing_" + ways + ".data")
+            bagging_result, accuracy = test_multi_classifier_bagging(retrain_model_dir,
+                                                                     "./training_data/taipei/testing_" + ways + ".data")
+            store_bagging_detail(bagging_result, accuracy,
+                                 ways + "_classifiers_bagging_" + str(exec_num) + ".detail")
+            store_classifiers_detail(retrain_model_dir, "./training_data/taipei/testing_" + ways + ".data",
+                                     ways + "_classifiers_" + str(exec_num) + ".detail")
